@@ -52,3 +52,13 @@ build/test-results/TEST-Tests1.xml
 build/tmp/jar/MANIFEST.MF
 
 .DS_Store
+
+.gradle/2.3/taskArtifacts/cache.properties
+
+.gradle/2.3/taskArtifacts/fileHashes.bin
+
+.gradle/2.3/taskArtifacts/fileSnapshots.bin
+
+.gradle/2.3/taskArtifacts/outputFileStates.bin
+
+.gradle/2.3/taskArtifacts/taskArtifacts.bin
