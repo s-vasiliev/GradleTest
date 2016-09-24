@@ -9,7 +9,7 @@ public class Tests2 {
             GradleTest.Calc calc = new GradleTest.Calc();
             int summand1 = 3;
             int summand2 = 6;
-            assertEquals("Sum must be " + (summand1 + summand2), (summand1 + summand2 + 15 - 15), calc.Add(summand1, summand2));
+            assertEquals("Sum must be " + (summand1 + summand2), (summand1 + summand2 + 25 - 25), calc.Add(summand1, summand2));
         }
     
     
