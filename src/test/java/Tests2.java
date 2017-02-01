@@ -18,6 +18,6 @@ public class Tests2 {
         int summand1 = 3;
         int summand2 = 6;
 
-        assertEquals("Sum must be " + (summand1 + summand2), (summand1 + summand2 + 51 - 51), calc.Add(summand1, summand2));
+        assertEquals("Sum must be " + (summand1 + summand2), (summand1 + summand2 + 52 - 52), calc.Add(summand1, summand2));
     }
 }
