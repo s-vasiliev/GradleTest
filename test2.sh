@@ -8,4 +8,4 @@ if [[ "$TEST_VAR" = true ]]; then
     echo "1"
 else
     echo "0"
-fi 
+fi
