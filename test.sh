@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
 
-#VS_ORGANIZATION=$1
-#VS_CREDENTIAL=$2
+VS_ORGANIZATION=$1
+VS_CREDENTIAL=$2
+#VS_ORGANIZATION="envizio"
+#VS_CREDENTIAL="vasyliev@mynfo.com:cf2j2ksf6bhurs2tjz7aycw7jewqa4xx725a4b6ql4sh5ces5kea"
+CHECK_ONLY="$3"
 
-
-VS_ORGANIZATION="envizio"
-VS_CREDENTIAL="vasyliev@mynfo.com:cf2j2ksf6bhurs2tjz7aycw7jewqa4xx725a4b6ql4sh5ces5kea"
-CHECK_ONLY="$1"
 RAISE_ERROR="$CHECK_ONLY"
 CURL_VERBOSE_FLAG="-s"
 #"-v"
@@ -94,7 +93,7 @@ exit_with_message "$IMPLEMENTED_ITEM_TYPE '$IMPLEMENTED_ITEM_ID' has not valid s
 fi
 
 if [[ "$CHECK_ONLY" != "0" ]]; then
-echo "-> $IMPLEMENTED_ITEM_TYPE '$IMPLEMENTED_ITEM_ID' will be closed if the buil is successful."
+echo "-> $IMPLEMENTED_ITEM_TYPE '$IMPLEMENTED_ITEM_ID' will be closed if the buil for default branch is successful."
 return
 fi
 
