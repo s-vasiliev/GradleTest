@@ -118,7 +118,6 @@ function close_work_item() {
   fi
 }
 
-
 # =====================
 
 set -e
