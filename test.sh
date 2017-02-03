@@ -6,8 +6,8 @@
 
 VS_ORGANIZATION="envizio"
 VS_CREDENTIAL="vasyliev@mynfo.com:cf2j2ksf6bhurs2tjz7aycw7jewqa4xx725a4b6ql4sh5ces5kea"
-#IMPLEMENTED_ITEM_ID="3422"
-CURL_VERBOSE_FLAG=
+CHECK_ONLY=$1
+CURL_VERBOSE_FLAG="-s"
 #"-v"
 
 TASK_TYPE_NAME="Task"
@@ -58,7 +58,10 @@ function update_work_item_state() {
 function close_work_item() {
 
   local IMPLEMENTED_ITEM_ID
-  IMPLEMENTED_ITEM_ID=$1
+  IMPLEMENTED_ITEM_ID="$1"
+
+  local CHECK_ONLY
+  CHECK_ONLY="$2"
 
   IMPLEMENTED_ITEM="$(curl $CURL_VERBOSE_FLAG -u $VS_CREDENTIAL 'https://'$VS_ORGANIZATION'.VisualStudio.com/DefaultCollection/_apis/wit/workitems/'$IMPLEMENTED_ITEM_ID'?$expand=all&api-version=1.0')"
 
@@ -76,8 +79,14 @@ function close_work_item() {
 
   IMPLEMENTED_ITEM_STATE="$(echo $IMPLEMENTED_ITEM | jq -r '.fields."System.State"')"
   if [[ "$IMPLEMENTED_ITEM_STATE" != "$IMPLEMENTED_ITEM_STATE_FROM" ]]; then
-    exit_with_message "Item '$IMPLEMENTED_ITEM_ID' has not valid state '$IMPLEMENTED_ITEM_STATE'. Valid state to close the item is '$IMPLEMENTED_ITEM_STATE_FROM'." 1
+    exit_with_message "$IMPLEMENTED_ITEM_TYPE '$IMPLEMENTED_ITEM_ID' has not valid state '$IMPLEMENTED_ITEM_STATE'. Valid state to close $IMPLEMENTED_ITEM_TYPE is '$IMPLEMENTED_ITEM_STATE_FROM'." 1
   fi
+
+  if [[ "$CHECK_ONLY" != "0" ]]; then
+    echo "-> $IMPLEMENTED_ITEM_TYPE '$IMPLEMENTED_ITEM_ID' will be closed if the buil is successful."
+    return
+  fi
+
 
   #TODO: Add a build (may be a commit hash too) id to the work item
   update_work_item_state "$IMPLEMENTED_ITEM_ID" "$IMPLEMENTED_ITEM_STATE_TO"
@@ -86,25 +95,22 @@ function close_work_item() {
 
 # ------- Close becklog Item
 
-  PARENT_ITEM_ID="$(echo $IMPLEMENTED_ITEM | jq -r '.relations[] | select(.rel | contains("System.LinkTypes.Hierarchy-Reverse")) | .url' | sed 's|.*\/\([[:digit:]]*\)$|\1|')"
+  PARENT_ITEM_ID="$(echo $IMPLEMENTED_ITEM | jq -r '.relations[] | select(.rel | contains("System.LinkTypes.Hierarchy-Reverse")) | .url | capture("/(?<n>[0-9]+$)") | .n')"
 
   if [[ "$PARENT_ITEM_ID" == "" ]]; then
-    exit_with_message "Item '$IMPLEMENTED_ITEM_ID' has not parent Work Item."
+    exit_with_message "$IMPLEMENTED_ITEM_TYPE '$IMPLEMENTED_ITEM_ID' has not parent Work Item."
   fi
 
 
   PARENT_ITEM="$(curl $CURL_VERBOSE_FLAG -u $VS_CREDENTIAL 'https://'$VS_ORGANIZATION'.VisualStudio.com/DefaultCollection/_apis/wit/workitems/'$PARENT_ITEM_ID'?$expand=relations&api-version=1.0')"
 
-  CHILD_ITEMS_IDS="$(echo $PARENT_ITEM | jq -r '. | select(.fields."System.WorkItemType" == "Product Backlog Item") | .relations[] | select(.rel | contains("System.LinkTypes.Hierarchy-Forward")) | .url' | sed 's|.*\/\([[:digit:]]*\)$|\1|')"
-  CHILD_ITEMS_IDS="$(echo $CHILD_ITEMS_IDS | sed 's|[[:space:]]|,|g')"
+  CHILD_ITEMS_IDS="$(echo $PARENT_ITEM | jq -r '[. | select(.fields."System.WorkItemType" == "Product Backlog Item") | .relations[] | select(.rel | contains("System.LinkTypes.Hierarchy-Forward")) | .url | capture("/(?<n>[0-9]+$)") | .n] | join(",")')"
 
   CHILD_ITEMS="$(curl $CURL_VERBOSE_FLAG -u $VS_CREDENTIAL 'https://'$VS_ORGANIZATION'.visualstudio.com/DefaultCollection/_apis/wit/workitems?ids='$CHILD_ITEMS_IDS'&api-version=1.0')"
 
   JQ_FILTER_NOT_IMPLEMENTED_CHILD_ITEMS_COUNT='[.value[] | select(((.fields."System.WorkItemType" == "'$TASK_TYPE_NAME'") and (.fields."System.State" as $state | ['$ALL_TASKS_STATES_TO_CLOSE_BI'] | index($state) < 0)) or ((.fields."System.WorkItemType" == "'$BUG_TYPE_NAME'") and (.fields."System.State" as $state | ['$ALL_BUGS_STATES_TO_CLOSE_BI'] | index($state) < 0)) )] | length'
 
   NOT_IMPLEMENTED_CHILD_ITEMS_COUNT=$(echo $CHILD_ITEMS | jq -r "$JQ_FILTER_NOT_IMPLEMENTED_CHILD_ITEMS_COUNT")
-
-  echo "-> Not implemented child items count: $NOT_IMPLEMENTED_CHILD_ITEMS_COUNT"
 
   if [ "$NOT_IMPLEMENTED_CHILD_ITEMS_COUNT" == "0" ];
   then
@@ -121,10 +127,8 @@ COMMIT_COMMENT="$(git show --pretty=format:"%s" -s)"
 
 echo "$COMMIT_COMMENT" | grep -o '#[[:digit:]][[:digit:]]*' | while read line
 do
-  close_work_item "$line"
+  close_work_item "$(echo "$line" | sed 's|#||')" "$CHECK_ONLY"
 done
-
-close_work_item $1
 
 
 set +e
