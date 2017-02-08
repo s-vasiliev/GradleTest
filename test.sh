@@ -28,7 +28,6 @@ ALL_BUGS_STATES_TO_CLOSE_BI='"Removed","Done"'
 # ===================
 
 function exit_with_message() {
-
 local MESSAGE
 MESSAGE="$1"
 
@@ -40,16 +39,16 @@ EXIT_CODE=0
 fi
 
 if [[ "$EXIT_CODE" != "0" ]]; then
-    echo "-> $MESSAGE" >&2
+echo "-> $MESSAGE" >&2
 else
-    echo "-> $MESSAGE"
+echo "-> $MESSAGE"
 fi
 
 if [[ "$RAISE_ERROR" != 0 ]]; then
-  exit "$EXIT_CODE"
+exit "$EXIT_CODE"
 else
 #TODO: if $EXIT_CODE != 0 notify to committer about it
-  exit 0
+exit 0
 fi
 }
 
@@ -57,16 +56,17 @@ function update_work_item_state() {
 local ITEM_ID
 ITEM_ID="$1"
 local NEW_ITEM_STATE
-NEW_ITEM_STATE=$2
+NEW_ITEM_STATE="$2"
+local IMPLEMENTED_ITEM_TYPE
+IMPLEMENTED_ITEM_TYPE="$3"
 
 REQUEST_DATA="[{\"op\": \"add\",\"path\": \"/fields/System.State\", \"value\": \"$NEW_ITEM_STATE\"}]"
 IMPLEMENTED_ITEM="$(curl $CURL_VERBOSE_FLAG -u $VS_CREDENTIAL -X PATCH 'https://'$VS_ORGANIZATION'.VisualStudio.com/DefaultCollection/_apis/wit/workitems/'$ITEM_ID'?api-version=1.0' -H 'Content-Type: application/json-patch+json' -d "$REQUEST_DATA")"
 
-echo "-> State of item '$ITEM_ID' changed to '$NEW_ITEM_STATE'"
+echo "-> State of $IMPLEMENTED_ITEM_TYPE '$ITEM_ID' changed to '$NEW_ITEM_STATE'"
 }
 
 function close_work_item() {
-
 local IMPLEMENTED_ITEM_ID
 IMPLEMENTED_ITEM_ID="$1"
 
@@ -99,9 +99,11 @@ fi
 
 
 #TODO: Add a build (may be a commit hash too) id to the work item
-update_work_item_state "$IMPLEMENTED_ITEM_ID" "$IMPLEMENTED_ITEM_STATE_TO"
+update_work_item_state "$IMPLEMENTED_ITEM_ID" "$IMPLEMENTED_ITEM_STATE_TO" "$IMPLEMENTED_ITEM_TYPE"
 
-#exit_with_message "OK!"
+if [[ "$IMPLEMENTED_ITEM_TYPE" != "$TASK_TYPE_NAME" ]]; then
+return
+fi
 
 # ------- Close becklog Item
 
@@ -110,27 +112,29 @@ update_work_item_state "$IMPLEMENTED_ITEM_ID" "$IMPLEMENTED_ITEM_STATE_TO"
 PARENT_ITEM_ID="$(echo $IMPLEMENTED_ITEM | jq -r '.relations[] | select(.rel | contains("System.LinkTypes.Hierarchy-Reverse")) | .url' | grep -o '[[:digit:]][[:digit:]]*$')"
 
 if [[ "$PARENT_ITEM_ID" == "" ]]; then
-exit_with_message "$IMPLEMENTED_ITEM_TYPE '$IMPLEMENTED_ITEM_ID' has not parent Work Item."
+echo "-> $IMPLEMENTED_ITEM_TYPE '$IMPLEMENTED_ITEM_ID' has not parent Work Item."
+return
 fi
 
 
 PARENT_ITEM="$(curl $CURL_VERBOSE_FLAG -u $VS_CREDENTIAL 'https://'$VS_ORGANIZATION'.VisualStudio.com/DefaultCollection/_apis/wit/workitems/'$PARENT_ITEM_ID'?$expand=relations&api-version=1.0')"
 
 #TODO: Update agent's jq version to 1.5
-#CHILD_ITEMS_IDS="$(echo $PARENT_ITEM | jq -r '[. | select(.fields."System.WorkItemType" == "Product Backlog Item") | .relations[] | select(.rel | contains("System.LinkTypes.Hierarchy-Forward")) | .url | capture("/(?<n>[0-9]+$)") | .n] | join(",")')"
-CHILD_ITEMS_IDS="$(echo $PARENT_ITEM | jq -r '. | select(.fields."System.WorkItemType" == "Product Backlog Item") | .relations[] | select(.rel | contains("System.LinkTypes.Hierarchy-Forward")) | .url' | grep -o '[[:digit:]][[:digit:]]*$' | xargs | sed 's| |,|g')"
+#CHILD_ITEMS_IDS="$(echo $PARENT_ITEM | jq -r '[. | select(.fields."System.WorkItemType" == "$BI_TYPE_NAME") | .relations[] | select(.rel | contains("System.LinkTypes.Hierarchy-Forward")) | .url | capture("/(?<n>[0-9]+$)") | .n] | join(",")')"
+CHILD_ITEMS_IDS="$(echo $PARENT_ITEM | jq -r '. | select(.fields."System.WorkItemType" == "$BI_TYPE_NAME") | .relations[] | select(.rel | contains("System.LinkTypes.Hierarchy-Forward")) | .url' | grep -o '[[:digit:]][[:digit:]]*$' | xargs | sed 's| |,|g')"
 
 CHILD_ITEMS="$(curl $CURL_VERBOSE_FLAG -u $VS_CREDENTIAL 'https://'$VS_ORGANIZATION'.visualstudio.com/DefaultCollection/_apis/wit/workitems?ids='$CHILD_ITEMS_IDS'&api-version=1.0')"
 
+#JQ_FILTER_NOT_IMPLEMENTED_CHILD_ITEMS_COUNT='[.value[] | select(((.fields."System.WorkItemType" == "'$TASK_TYPE_NAME'") and (.fields."System.State" as $state | ['$ALL_TASKS_STATES_TO_CLOSE_BI'] | index($state) < 0)) or ((.fields."System.WorkItemType" == "'$BUG_TYPE_NAME'") and (.fields."System.State" as $state | ['$ALL_BUGS_STATES_TO_CLOSE_BI'] | index($state) < 0)) )] | length'
 JQ_FILTER_NOT_IMPLEMENTED_CHILD_ITEMS_COUNT='[.value[] | select(((.fields."System.WorkItemType" == "'$TASK_TYPE_NAME'") and (.fields."System.State" as $state | ['$ALL_TASKS_STATES_TO_CLOSE_BI'] | index($state) < 0)))] | length'
 
 NOT_IMPLEMENTED_CHILD_ITEMS_COUNT=$(echo $CHILD_ITEMS | jq -r "$JQ_FILTER_NOT_IMPLEMENTED_CHILD_ITEMS_COUNT")
 
 if [ "$NOT_IMPLEMENTED_CHILD_ITEMS_COUNT" == "0" ];
 then
-update_work_item_state "$PARENT_ITEM_ID" "$IMPLEMENTED_BI_STATE_TO"
+update_work_item_state "$PARENT_ITEM_ID" "$IMPLEMENTED_BI_STATE_TO" "$BI_TYPE_NAME"
 fi
-} 
+}
 
 # =====================
 
@@ -142,6 +146,5 @@ echo "$COMMIT_COMMENT" | grep -o '#[[:digit:]][[:digit:]]*' | while read line
 do
 close_work_item "$(echo "$line" | sed 's|#||')" "$CHECK_ONLY"
 done
-
 
 set +e
