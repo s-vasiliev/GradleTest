@@ -122,7 +122,7 @@ CHILD_ITEMS_IDS="$(echo $PARENT_ITEM | jq -r '. | select(.fields."System.WorkIte
 
 CHILD_ITEMS="$(curl $CURL_VERBOSE_FLAG -u $VS_CREDENTIAL 'https://'$VS_ORGANIZATION'.visualstudio.com/DefaultCollection/_apis/wit/workitems?ids='$CHILD_ITEMS_IDS'&api-version=1.0')"
 
-JQ_FILTER_NOT_IMPLEMENTED_CHILD_ITEMS_COUNT='[.value[] | select(((.fields."System.WorkItemType" == "'$TASK_TYPE_NAME'") and (.fields."System.State" as $state | ['$ALL_TASKS_STATES_TO_CLOSE_BI'] | index($state) < 0)) or ((.fields."System.WorkItemType" == "'$BUG_TYPE_NAME'") and (.fields."System.State" as $state | ['$ALL_BUGS_STATES_TO_CLOSE_BI'] | index($state) < 0)) )] | length'
+JQ_FILTER_NOT_IMPLEMENTED_CHILD_ITEMS_COUNT='[.value[] | select(((.fields."System.WorkItemType" == "'$TASK_TYPE_NAME'") and (.fields."System.State" as $state | ['$ALL_TASKS_STATES_TO_CLOSE_BI'] | index($state) < 0)))] | length'
 
 NOT_IMPLEMENTED_CHILD_ITEMS_COUNT=$(echo $CHILD_ITEMS | jq -r "$JQ_FILTER_NOT_IMPLEMENTED_CHILD_ITEMS_COUNT")
 
