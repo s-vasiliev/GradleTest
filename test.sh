@@ -130,7 +130,7 @@ if [ "$NOT_IMPLEMENTED_CHILD_ITEMS_COUNT" == "0" ];
 then
 update_work_item_state "$PARENT_ITEM_ID" "$IMPLEMENTED_BI_STATE_TO"
 fi
-}
+} 
 
 # =====================
 
