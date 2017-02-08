@@ -118,7 +118,7 @@ PARENT_ITEM="$(curl $CURL_VERBOSE_FLAG -u $VS_CREDENTIAL 'https://'$VS_ORGANIZAT
 
 #TODO: Update agent's jq version to 1.5
 #CHILD_ITEMS_IDS="$(echo $PARENT_ITEM | jq -r '[. | select(.fields."System.WorkItemType" == "Product Backlog Item") | .relations[] | select(.rel | contains("System.LinkTypes.Hierarchy-Forward")) | .url | capture("/(?<n>[0-9]+$)") | .n] | join(",")')"
-CHILD_ITEMS_IDS="$(echo $PARENT_ITEM | jq -r '. | select(.fields."System.WorkItemType" == "Product Backlog Item") | .relations[] | select(.rel | contains("System.LinkTypes.Hierarchy-Forward")) | .url' | grep -o '[[:digit:]][[:digit:]]*&' | xargs | sed 's| |,|')"
+CHILD_ITEMS_IDS="$(echo $PARENT_ITEM | jq -r '. | select(.fields."System.WorkItemType" == "Product Backlog Item") | .relations[] | select(.rel | contains("System.LinkTypes.Hierarchy-Forward")) | .url' | grep -o '[[:digit:]][[:digit:]]*$' | xargs | sed 's| |,|g')"
 
 CHILD_ITEMS="$(curl $CURL_VERBOSE_FLAG -u $VS_CREDENTIAL 'https://'$VS_ORGANIZATION'.visualstudio.com/DefaultCollection/_apis/wit/workitems?ids='$CHILD_ITEMS_IDS'&api-version=1.0')"
 
