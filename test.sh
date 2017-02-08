@@ -105,7 +105,9 @@ update_work_item_state "$IMPLEMENTED_ITEM_ID" "$IMPLEMENTED_ITEM_STATE_TO"
 
 # ------- Close becklog Item
 
-PARENT_ITEM_ID="$(echo $IMPLEMENTED_ITEM | jq -r '.relations[] | select(.rel | contains("System.LinkTypes.Hierarchy-Reverse")) | .url | capture("/(?<n>[0-9]+$)") | .n')"
+#TODO: Update agent's jq version to 1.5
+#PARENT_ITEM_ID="$(echo $IMPLEMENTED_ITEM | jq -r '.relations[] | select(.rel | contains("System.LinkTypes.Hierarchy-Reverse")) | .url | capture("/(?<n>[0-9]+$)") | .n')"
+PARENT_ITEM_ID="$(echo $IMPLEMENTED_ITEM | jq -r '.relations[] | select(.rel | contains("System.LinkTypes.Hierarchy-Reverse")) | .url' | grep -o '[[:digit:]][[:digit:]]*$')"
 
 if [[ "$PARENT_ITEM_ID" == "" ]]; then
 exit_with_message "$IMPLEMENTED_ITEM_TYPE '$IMPLEMENTED_ITEM_ID' has not parent Work Item."
@@ -114,7 +116,9 @@ fi
 
 PARENT_ITEM="$(curl $CURL_VERBOSE_FLAG -u $VS_CREDENTIAL 'https://'$VS_ORGANIZATION'.VisualStudio.com/DefaultCollection/_apis/wit/workitems/'$PARENT_ITEM_ID'?$expand=relations&api-version=1.0')"
 
-CHILD_ITEMS_IDS="$(echo $PARENT_ITEM | jq -r '[. | select(.fields."System.WorkItemType" == "Product Backlog Item") | .relations[] | select(.rel | contains("System.LinkTypes.Hierarchy-Forward")) | .url | capture("/(?<n>[0-9]+$)") | .n] | join(",")')"
+#TODO: Update agent's jq version to 1.5
+#CHILD_ITEMS_IDS="$(echo $PARENT_ITEM | jq -r '[. | select(.fields."System.WorkItemType" == "Product Backlog Item") | .relations[] | select(.rel | contains("System.LinkTypes.Hierarchy-Forward")) | .url | capture("/(?<n>[0-9]+$)") | .n] | join(",")')"
+CHILD_ITEMS_IDS="$(echo $PARENT_ITEM | jq -r '[. | select(.fields."System.WorkItemType" == "Product Backlog Item") | .relations[] | select(.rel | contains("System.LinkTypes.Hierarchy-Forward")) | .url' | grep -o '[[:digit:]][[:digit:]]*&' | xargs | sed 's| |,|')
 
 CHILD_ITEMS="$(curl $CURL_VERBOSE_FLAG -u $VS_CREDENTIAL 'https://'$VS_ORGANIZATION'.visualstudio.com/DefaultCollection/_apis/wit/workitems?ids='$CHILD_ITEMS_IDS'&api-version=1.0')"
 
